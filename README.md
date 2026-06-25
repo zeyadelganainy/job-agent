@@ -110,7 +110,8 @@ Run `python bot.py` and talk to your bot:
 
 Reply with the **numbers** from the digest (not any IDs). Each entry shows the match %,
 location, the scorer's reasoning, and an **Apply** link. Generated files land in
-`output/<job_id>/`: `resume.docx` (apply with this), `cover_letter.md`, and `resume.md`.
+`output/<job_id>/`, named `[date]_[title]_[company]_resume.docx` and `..._coverLetter.docx`
+(e.g. `20260625_software_developer_d2l_resume.docx`).
 
 `run_scan.py` does a one-off scan and pushes a digest — handy for a daily cron / Task
 Scheduler job; you then open the bot and `/pick`.

@@ -1,4 +1,5 @@
 import json
+from datetime import date
 from pathlib import Path
 
 import docx
@@ -80,20 +81,34 @@ def test_render_docx_has_rules_and_project_hyperlink(tmp_path):
     assert "hyperlink" in xml       # clickable project + contact links
 
 
-def test_generate_writes_three_files(tmp_path, monkeypatch):
+def test_slug_and_basename():
+    assert g._slug("Software Developer - New Graduate") == "software_developer_new_graduate"
+    assert g._slug("D2L") == "d2l"
+    assert g._slug("") == "x"
+    base = g._doc_basename({"title": "Backend Engineer", "company": "D2L"})
+    assert base == date.today().strftime("%Y%m%d") + "_backend_engineer_d2l"
+
+
+def test_generate_writes_resume_and_cover_docx(tmp_path, monkeypatch):
     resume_json = json.dumps({
         "summary": "S", "skills": [{"label": "L", "items": "x"}],
         "experience": [{"role": "R", "org": "O", "dates": "D", "bullets": ["b"]}],
     })
-    seq = iter(["Dear team, ...", resume_json])     # cover first, then resume JSON
+    seq = iter(["Dear team, I am excited.\n\nSecond paragraph.", resume_json])
     monkeypatch.setattr(g, "chat", lambda s, u, m: next(seq))
 
-    job = {"job_id": "abc", "title": "T", "company": "C", "description": "d"}
+    job = {"job_id": "abc", "title": "Backend Engineer", "company": "D2L", "description": "d"}
     paths = g.generate(job, {"identity": {"name": "Z", "email": "e"}}, "", "master",
                        {"claude": "c", "gemini": "x"},
                        {"output": str(tmp_path), "template": "nonexistent.docx"})
-    assert {Path(p).name for p in paths} == {"cover_letter.md", "resume.md", "resume.docx"}
-    assert (tmp_path / "abc" / "cover_letter.md").read_text(encoding="utf-8").startswith("Dear team")
+    names = sorted(Path(p).name for p in paths)
+    prefix = date.today().strftime("%Y%m%d") + "_backend_engineer_d2l_"
+    assert len(names) == 2
+    assert names[0] == prefix + "coverLetter.docx"
+    assert names[1] == prefix + "resume.docx"
+    cover = next(p for p in paths if p.endswith("_coverLetter.docx"))
+    text = "\n".join(p.text for p in docx.Document(cover).paragraphs)
+    assert "Dear team" in text and "Second paragraph" in text
 
 
 def test_generate_falls_back_when_resume_json_unparseable(tmp_path, monkeypatch):
@@ -104,5 +119,6 @@ def test_generate_falls_back_when_resume_json_unparseable(tmp_path, monkeypatch)
                        {"claude": "c", "gemini": "x"},
                        {"output": str(tmp_path), "template": "nonexistent.docx"})
     names = {Path(p).name for p in paths}
-    assert "cover_letter.md" in names and "resume.md" in names
-    assert "resume.docx" not in names               # no docx on parse failure
+    assert any(n.endswith("_coverLetter.docx") for n in names)   # cover -> docx
+    assert any(n.endswith("_resume.md") for n in names)          # resume falls back to md
+    assert not any(n.endswith("_resume.docx") for n in names)

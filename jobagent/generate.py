@@ -4,10 +4,12 @@ Content comes from the master résumé (profile/master.md, the source of truth).
 resume is produced as structured JSON, then rendered into a .docx that matches the
 user's own template (profile/resume.docx) — its fonts, margins, and two-column layout.
 
-Outputs to output/<job_id>/:
-  cover_letter.md, resume.md, resume.docx
+Outputs to output/<job_id>/, named [date]_[title]_[company]_[resume|coverLetter]:
+  e.g. 20260625_software_developer_d2l_resume.docx  and  ..._coverLetter.docx
 """
+import re
 import warnings
+from datetime import date
 from pathlib import Path
 
 from docx import Document
@@ -309,6 +311,32 @@ def _render_resume_docx(data: dict, identity: dict, template: Path, out_path: Pa
     doc.save(str(out_path))
 
 
+def _render_cover_docx(text: str, identity: dict, template: Path, out_path: Path):
+    """Render the cover letter prose into a .docx with the same header/template look."""
+    doc = Document(str(template)) if template.exists() else Document()
+    _clear_body(doc)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        nf = doc.styles["Normal"].paragraph_format
+    nf.space_before = Pt(0)
+    nf.space_after = Pt(6)
+    nf.line_spacing = 1.15
+
+    name_p = _par(doc)
+    name_p.alignment = 1  # center
+    _run(name_p, identity.get("name", ""), bold=True, size=16)
+    _hr(_render_contact(doc, identity) or name_p)
+    _par(doc)  # blank spacer line
+
+    for block in re.split(r"\n\s*\n", (text or "").strip()):
+        block = " ".join(block.split())   # collapse internal line breaks
+        if block:
+            p = _par(doc)
+            p.paragraph_format.space_after = Pt(6)
+            _run(p, block, size=10.5)
+    doc.save(str(out_path))
+
+
 def _resume_to_md(data: dict, identity: dict) -> str:
     """A plain-Markdown mirror of the structured resume, for quick reading/diffing."""
     out = [f"# {identity.get('name', '')}", _contact_line(identity), ""]
@@ -343,6 +371,17 @@ def _resume_to_md(data: dict, identity: dict) -> str:
     return "\n".join(out).strip() + "\n"
 
 
+def _slug(text, maxlen: int = 40) -> str:
+    """lowercase, non-alphanumeric -> underscore, collapsed and trimmed."""
+    s = re.sub(r"[^a-z0-9]+", "_", str(text or "").lower()).strip("_")
+    return s[:maxlen].strip("_") or "x"
+
+
+def _doc_basename(job_row) -> str:
+    """[date]_[title]_[company], e.g. 20260625_software_developer_d2l."""
+    return f"{date.today():%Y%m%d}_{_slug(job_row['title'])}_{_slug(job_row['company'])}"
+
+
 # ------------------------------------------------------------------- entry point
 def generate(job_row, profile: dict, samples: str, master: str, models: dict,
              paths: dict) -> list[str]:
@@ -351,16 +390,24 @@ def generate(job_row, profile: dict, samples: str, master: str, models: dict,
     folder.mkdir(parents=True, exist_ok=True)
     desc = (job_row["description"] or "")[:6000]
     identity = profile.get("identity", profile)   # tolerate flat or nested profile
+    template = ROOT / paths["template"]
+    base = _doc_basename(job_row)                  # [date]_[title]_[company]
     out_paths = []
 
-    # Cover letter (free text, in the candidate's voice).
+    # Cover letter -> .docx (falls back to .md only if rendering fails).
     cover = chat(COVER_SYSTEM, COVER_TEMPLATE.format(
         samples=samples or "(no samples provided)", master=master,
         title=job_row["title"], company=job_row["company"], description=desc), models)
-    (folder / "cover_letter.md").write_text(cover, encoding="utf-8")
-    out_paths.append(str(folder / "cover_letter.md"))
+    try:
+        cover_path = folder / f"{base}_coverLetter.docx"
+        _render_cover_docx(cover, identity, template, cover_path)
+    except Exception as e:
+        print(f"[generate] cover docx render failed: {e}; saving markdown")
+        cover_path = folder / f"{base}_coverLetter.md"
+        cover_path.write_text(cover, encoding="utf-8")
+    out_paths.append(str(cover_path))
 
-    # Resume (structured JSON -> template-matching docx + readable markdown).
+    # Resume: structured JSON -> template-matching .docx.
     raw = chat(RESUME_SYSTEM, RESUME_TEMPLATE.format(
         master=master, title=job_row["title"],
         company=job_row["company"], description=desc), models)
@@ -368,18 +415,18 @@ def generate(job_row, profile: dict, samples: str, master: str, models: dict,
         data = extract_json(raw)
     except Exception as e:
         print(f"[generate] resume JSON parse failed ({e}); saving raw output.")
-        (folder / "resume.md").write_text(raw, encoding="utf-8")
-        return out_paths + [str(folder / "resume.md")]
+        md = folder / f"{base}_resume.md"
+        md.write_text(raw, encoding="utf-8")
+        return out_paths + [str(md)]
 
     _strip_fabricated_links(data, master)   # never let invented URLs onto the résumé
-
-    (folder / "resume.md").write_text(_resume_to_md(data, identity), encoding="utf-8")
-    out_paths.append(str(folder / "resume.md"))
     try:
-        docx_path = folder / "resume.docx"
-        _render_resume_docx(data, identity, ROOT / paths["template"], docx_path)
-        out_paths.append(str(docx_path))
+        resume_path = folder / f"{base}_resume.docx"
+        _render_resume_docx(data, identity, template, resume_path)
     except Exception as e:
-        print(f"[generate] docx render failed: {e}")
+        print(f"[generate] resume docx render failed: {e}; saving markdown")
+        resume_path = folder / f"{base}_resume.md"
+        resume_path.write_text(_resume_to_md(data, identity), encoding="utf-8")
+    out_paths.append(str(resume_path))
 
     return out_paths
