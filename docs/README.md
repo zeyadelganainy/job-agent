@@ -1,7 +1,8 @@
 # Demo media
 
-The README's hero image points to **`docs/demo.png`** — add it here before you share
-the repo (otherwise that image shows as broken).
+The README's hero points to **`docs/demo.gif`** — a screen recording of the workflow.
+Replace it with an updated capture anytime; keep the same filename so the README hero
+keeps working.
 
 ## What to capture
 
