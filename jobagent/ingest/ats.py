@@ -90,3 +90,48 @@ def fetch_all(ats_cfg: dict) -> list[Job]:
             except Exception as e:
                 print(f"[ats] {provider}/{token} failed: {e}")
     return out
+
+
+def fetch_job(url: str) -> Job:
+    """Fetch a single posting from a Greenhouse / Lever / Ashby job-board URL."""
+    u = (url or "").strip()
+
+    m = re.search(r"(?:boards|job-boards)\.greenhouse\.io/([^/?#]+)/jobs/(\d+)", u)
+    if m:
+        token, jid = m.group(1), m.group(2)
+        d = requests.get(f"https://boards-api.greenhouse.io/v1/boards/{token}/jobs/{jid}",
+                         headers=HEADERS, timeout=TIMEOUT).json()
+        return Job(source="greenhouse", title=d.get("title", ""), company=token,
+                   url=d.get("absolute_url", u),
+                   location=(d.get("location") or {}).get("name", ""),
+                   description=_clean(d.get("content", "")),
+                   posted=d.get("updated_at", ""))
+
+    m = re.search(r"jobs\.lever\.co/([^/?#]+)/([^/?#]+)", u)
+    if m:
+        token, jid = m.group(1), m.group(2)
+        d = requests.get(f"https://api.lever.co/v0/postings/{token}/{jid}?mode=json",
+                         headers=HEADERS, timeout=TIMEOUT).json()
+        cats = d.get("categories", {}) or {}
+        return Job(source="lever", title=d.get("text", ""), company=token,
+                   url=d.get("hostedUrl", u), location=cats.get("location", ""),
+                   description=_clean(d.get("descriptionPlain", d.get("description", ""))),
+                   posted=str(d.get("createdAt", "")))
+
+    m = re.search(r"jobs\.ashbyhq\.com/([^/?#]+)/([^/?#]+)", u)
+    if m:
+        token, jid = m.group(1), m.group(2)
+        data = requests.get(f"https://api.ashbyhq.com/posting-api/job-board/{token}",
+                            headers=HEADERS, timeout=TIMEOUT).json()
+        for j in data.get("jobs", []):
+            if jid == j.get("id") or jid in (j.get("jobUrl") or ""):
+                return Job(source="ashby", title=j.get("title", ""), company=token,
+                           url=j.get("jobUrl", u), location=j.get("location", ""),
+                           description=_clean(j.get("descriptionPlain", "")),
+                           posted=j.get("publishedAt", ""))
+        raise ValueError("That Ashby posting wasn't found on the board.")
+
+    raise ValueError(
+        "Unrecognized job URL. Supported: boards.greenhouse.io/<token>/jobs/<id>, "
+        "jobs.lever.co/<token>/<id>, jobs.ashbyhq.com/<token>/<id>. "
+        "Otherwise paste the job description text instead.")

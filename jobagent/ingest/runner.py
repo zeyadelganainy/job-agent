@@ -12,6 +12,15 @@ def _keyword_match(job: Job, keywords: list[str]) -> bool:
     return any(k.lower() in hay for k in keywords)
 
 
+def _blocked(job: Job, blocklist: list[str]) -> bool:
+    """True if the job's company matches any blocked term (case-insensitive substring).
+    Use for recruiters / staffing agencies / known scams you never want to see."""
+    if not blocklist:
+        return False
+    co = (job.company or "").lower()
+    return any(b.strip().lower() in co for b in blocklist if b.strip())
+
+
 def _location_match(job: Job, locations: list[str]) -> bool:
     """Keep the job if its location text contains any configured location token.
     Unknown (empty) locations are kept — the human stays in the loop."""
@@ -57,10 +66,13 @@ def gather(cfg: dict) -> list[Job]:
 
     keywords = search.get("keywords", [])
     locations = search.get("locations", [])
+    blocklist = search.get("block_companies", [])
     max_age = search.get("max_age_days")
 
     seen, filtered = set(), []
     for j in jobs:
+        if _blocked(j, blocklist):
+            continue
         if not _keyword_match(j, keywords):
             continue
         if not _location_match(j, locations):

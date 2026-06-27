@@ -110,3 +110,29 @@ def test_chat_reraises_when_no_gemini_key(monkeypatch):
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     with pytest.raises(RuntimeError):
         llm.chat("s", "u", {"claude": "c", "gemini": "g"})
+
+
+def _exc(code=None, msg="boom"):
+    e = Exception(msg)
+    if code:
+        e.status_code = code
+    return e
+
+
+def test_describe_classifies():
+    assert "quota" in llm._describe(_exc(429))
+    inv = llm._describe(_exc(401))
+    assert "invalid" in inv or "unauthorized" in inv
+    assert "overloaded" in llm._describe(_exc(503))
+    assert "not configured" in llm._describe(
+        RuntimeError("Missing required env var: ANTHROPIC_API_KEY"))
+
+
+def test_chat_all_fail_raises_named_llmerror(monkeypatch):
+    monkeypatch.setattr(llm, "_call_claude", _raise(_exc(429)))
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    with pytest.raises(llm.LLMError) as ei:
+        llm.chat("s", "u", {"claude": "claude-opus-4-8", "gemini": "gemini-2.5-flash"})
+    msg = str(ei.value)
+    assert "Claude (claude-opus-4-8)" in msg and "quota" in msg
+    assert "Gemini" in msg and "not configured" in msg

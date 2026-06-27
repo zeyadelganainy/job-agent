@@ -15,7 +15,11 @@ from jobagent.notify import send_message
 from jobagent.pipeline import format_digest, pending, scan
 
 if __name__ == "__main__":
-    scan()                       # ingest -> score -> mark matches 'sent'
+    try:
+        scan()                   # ingest -> score -> mark matches 'sent'
+    except Exception as e:
+        print(f"Scan failed — {e}")
+        raise SystemExit(1)
     jobs = pending()             # everything awaiting your decision, numbered
     text = format_digest(jobs)
     print(text)

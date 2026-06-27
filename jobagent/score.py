@@ -1,7 +1,7 @@
 """Score a job against the profile. Returns a 0-100 match with reasons + gaps."""
 import yaml
 
-from .llm import chat, extract_json
+from .llm import LLMError, chat, extract_json
 from .models import Job
 
 SYSTEM = (
@@ -37,8 +37,10 @@ def score_job(job: Job, profile: dict, models: dict) -> Job:
         job.score = int(data.get("score", 0))
         job.reasons = str(data.get("reasons", ""))
         job.gaps = str(data.get("gaps", ""))
+    except LLMError:
+        raise   # LLM is down / no key / quota — let the scan surface a clear message
     except Exception as e:
-        print(f"[score] failed for {job.title} @ {job.company}: {e}")
+        print(f"[score] unparseable response for {job.title} @ {job.company}: {e}")
         job.score = 0
-        job.reasons = "scoring failed"
+        job.reasons = "scoring failed (could not parse model output)"
     return job

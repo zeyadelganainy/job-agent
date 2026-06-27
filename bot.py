@@ -46,7 +46,11 @@ async def cmd_scan(update: Update, _: ContextTypes.DEFAULT_TYPE):
     if not _authorized(update):
         return
     await update.message.reply_text("Scanning…")
-    await asyncio.to_thread(scan, CFG)
+    try:
+        await asyncio.to_thread(scan, CFG)
+    except Exception as e:
+        await update.message.reply_text(f"Scan failed — {e}")
+        return
     # Show the full pending list so its 1..N numbering matches /pick and /skip.
     await update.message.reply_text(format_digest(pending(CFG)), parse_mode="HTML")
 
@@ -74,7 +78,11 @@ async def cmd_pick(update: Update, context: ContextTypes.DEFAULT_TYPE):
     def _work():
         return list(pick_and_generate(ids, CFG))
 
-    results = await asyncio.to_thread(_work)
+    try:
+        results = await asyncio.to_thread(_work)
+    except Exception as e:
+        await update.message.reply_text(f"Generation failed — {e}")
+        return
     for row, paths in results:
         if not paths:
             await update.message.reply_text(f"Skipped {row.get('title', '?')} (not found)")

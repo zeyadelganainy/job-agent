@@ -118,6 +118,32 @@ Scheduler job; you then open the bot and `/pick`.
 
 ---
 
+## Web UI (v1.1)
+
+A browser dashboard over the same engine — run scans, pick jobs, generate from any job
+description, browse generated docs, and view your imported application tracker.
+
+```bash
+pip install -r requirements.txt
+# set WEB_USERNAME / WEB_PASSWORD in .env, then:
+python run_web.py        # serves on the host/port from config.yaml `web:`
+```
+
+Log in with the `WEB_USERNAME` / `WEB_PASSWORD` from your `.env`. Pages:
+- **Dashboard** — counts + next scheduled-scan time, with a "Run scan now" button.
+- **Jobs** — tick jobs and generate docs for them (runs in the background).
+- **Generate** — paste a job description **or** an ATS URL (Greenhouse/Lever/Ashby) → tailored résumé + cover letter `.docx`.
+- **Docs** — every generated document, with downloads.
+- **Tracker** — import your Google Sheets tracker (CSV export with role, company, date applied, stage, location, notes); **view-only**, re-import to refresh.
+
+**Scheduled daily scans:** while the web app is running, it scans at `schedule.time`
+(`config.yaml`) each day and pushes the digest to Telegram.
+
+**Access & security:** set `web.host` to `0.0.0.0` for LAN/Tailscale access or `127.0.0.1`
+for localhost only. Auth is a single username/password (HTTP Basic) over plain HTTP — keep
+it on a trusted network, or put a TLS reverse proxy in front before any public exposure.
+Run the web app **or** the Telegram bot (they share one SQLite DB; not meant to run at once).
+
 ## Tailoring with `config.yaml`
 
 Point the agent at the jobs you want, then re-run a scan.
@@ -245,9 +271,10 @@ and conventions.
 ## Project layout
 ```
 run_scan.py        # one-off scan -> digest
+run_web.py         # launch the web UI (v1.1)
 bot.py             # interactive Telegram bot
-config.yaml        # search, sources, scoring, models  (you edit this)
+config.yaml        # search, sources, scoring, models, web, schedule  (you edit this)
 profile/           # your data: profile.yaml, master.md, samples/, resume.docx  (gitignored)
-jobagent/          # ingest/ (ats, boards, runner), score, generate, llm, store, pipeline
+jobagent/          # ingest/, score, generate, llm, store, pipeline, scheduler, tracker, web/
 tests/             # pytest suite
 ```

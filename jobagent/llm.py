@@ -11,6 +11,16 @@ import time
 
 from .config import env, load_config
 
+
+class LLMError(RuntimeError):
+    """No configured LLM provider could return a response. Message names each
+    provider tried and what went wrong; `.attempts` holds (provider, reason) pairs."""
+
+    def __init__(self, message, attempts=None):
+        super().__init__(message)
+        self.attempts = attempts or []
+
+
 _anthropic_client = None
 _gemini_client = None
 
@@ -145,16 +155,50 @@ def _retry(fn, label: str):
             time.sleep(delay)
 
 
+def _describe(e: Exception) -> str:
+    """Turn a provider exception into a short, human reason."""
+    low = str(e).lower()
+    code = _status_code(e)
+    if "missing required env var" in low:
+        return "not configured (API key missing)"
+    if code == 429 or any(k in low for k in
+                          ("resource_exhausted", "quota", "rate limit", "rate_limit", "429")):
+        return "rate limit or quota exhausted"
+    if code in (401, 403) or any(k in low for k in
+                                 ("authentication", "permission", "unauthorized", "api key not valid")) \
+            or ("invalid" in low and "key" in low):
+        return "invalid or unauthorized API key"
+    if code in (500, 502, 503, 504, 529) or "overloaded" in low or "unavailable" in low:
+        return "provider overloaded or unavailable — try again shortly"
+    if "timeout" in low or "timed out" in low or "connection" in low:
+        return "network/connection problem"
+    s = str(e).strip().replace("\n", " ")
+    return (s[:140] + "…") if len(s) > 140 else (s or e.__class__.__name__)
+
+
 def chat(system: str, user: str, models: dict) -> str:
-    """Return the model's text. Tries Claude (with backoff), falls back to Gemini
-    (with backoff) on any error."""
+    """Return the model's text. Tries Claude first, then Gemini, each with backoff.
+    If both fail (or aren't configured), raises LLMError naming what went wrong."""
+    attempts = []
     try:
         return _retry(lambda: _call_claude(system, user, models), "Claude")
     except Exception as e:
-        print(f"[llm] Claude failed ({e}); trying Gemini...")
-        if not env("GEMINI_API_KEY"):
-            raise
-        return _retry(lambda: _call_gemini(system, user, models), "Gemini")
+        reason = _describe(e)
+        attempts.append((f"Claude ({models.get('claude', '?')})", reason))
+        print(f"[llm] Claude unavailable: {reason}; trying Gemini…")
+
+    if env("GEMINI_API_KEY"):
+        try:
+            return _retry(lambda: _call_gemini(system, user, models), "Gemini")
+        except Exception as e:
+            reason = _describe(e)
+            attempts.append((f"Gemini ({models.get('gemini', '?')})", reason))
+            print(f"[llm] Gemini unavailable: {reason}")
+    else:
+        attempts.append(("Gemini", "not configured (no GEMINI_API_KEY)"))
+
+    raise LLMError("No LLM could respond — "
+                   + "; ".join(f"{p}: {r}" for p, r in attempts) + ".", attempts)
 
 
 def extract_json(text: str) -> dict:

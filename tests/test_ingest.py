@@ -33,6 +33,23 @@ def test_gather_filters_and_dedupes(monkeypatch):
     assert [j.title for j in out] == ["Backend Engineer"]
 
 
+def test_blocked():
+    j = Job(source="s", title="t", company="Sketchy Recruiters Inc", url="u")
+    assert runner._blocked(j, ["recruiters"])      # case-insensitive substring
+    assert not runner._blocked(j, ["acme"])
+    assert not runner._blocked(j, [])
+
+
+def test_gather_applies_blocklist(monkeypatch):
+    jobs = [Job(source="s", title="Engineer", company="Acme Corp", url="a"),
+            Job(source="s", title="Engineer", company="Sketchy Recruiters Inc", url="b")]
+    monkeypatch.setattr(runner.ats, "fetch_all", lambda c: list(jobs))
+    monkeypatch.setattr(runner.boards, "fetch_all", lambda s, b: [])
+    out = runner.gather({"search": {"keywords": ["engineer"], "block_companies": ["recruiters"]},
+                         "sources": {"ats": {}, "boards": {}}})
+    assert [j.company for j in out] == ["Acme Corp"]
+
+
 def test_location_match():
     canada = Job(source="s", title="t", company="c", url="u", location="Vancouver, BC")
     us = Job(source="s", title="t", company="c", url="u", location="New York, NY")

@@ -28,6 +28,8 @@ search:
     - Mississauga
   remote_ok: true
   max_age_days: 7           # ignore postings older than this (when a date is available)
+  block_companies: []       # never show roles whose company matches any of these
+                            # (case-insensitive substring) — recruiters/staffing/scams
 
 # ---- Where to pull from ----
 sources:
@@ -66,6 +68,17 @@ llm:
   max_delay_seconds: 60   # cap on any single backoff sleep
   max_tokens: 4096        # per-response output cap (Claude requires it)
   gen_delay_seconds: 3    # pause between sequential doc gens on a /pick batch
+
+# ---- Web UI (v1.1) ----
+web:
+  host: 0.0.0.0           # 0.0.0.0 = reachable on your LAN/Tailscale; 127.0.0.1 = localhost only
+  port: 8000
+
+# ---- Scheduled daily scan (v1.1; runs while the web app is up) ----
+schedule:
+  enabled: true
+  time: "08:00"           # local 24h time to run the daily scan + push the Telegram digest
+  timezone: America/Vancouver
 
 paths:
   db: jobs.db

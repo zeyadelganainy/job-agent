@@ -7,6 +7,11 @@ owner's machine. See README.md for setup; this file is the behavioral contract.
 scan → score → Telegram digest → user replies `/pick <ids>` → generate tailored
 resume + cover letter → user applies MANUALLY.
 
+v1.1 adds a **web UI** (FastAPI) and **scheduled daily scans** as *additional* surfaces over
+the same pipeline — same loop, same human-in-the-loop, no auto-apply. The web UI can also
+generate docs for an **ad-hoc JD** (pasted text or ATS URL) and shows a **view-only** imported
+application tracker.
+
 ## Hard rules
 - **Never add auto-apply / auto-submit.** The human stays in the loop for the final
   application. This is a deliberate safety + account-ban decision, not an oversight.
@@ -32,13 +37,20 @@ resume + cover letter → user applies MANUALLY.
   JSON and is rendered into a `resume.docx` that matches the user's own
   `profile/resume.docx` template (fonts, margins, two-column rows). Uses writing samples
   in `profile/samples/` as voice exemplars for the cover letter.
-- `jobagent/store.py` — SQLite state. Status flow: new → scored → sent → picked →
-  generated (or skipped). Each Job has a stable `job_id` (sha1 of url).
+- `jobagent/store.py` — SQLite state. Job status flow: new → scored → sent → picked →
+  generated (or skipped); stable `job_id` (sha1 of url). Also a **view-only `applications`
+  table** for the imported tracker. WAL + per-request connections so the web app is safe.
 - `jobagent/llm.py` — Claude (Anthropic) primary, Gemini fallback, both BYOK. Falls
   back to Gemini when Claude errors or `ANTHROPIC_API_KEY` is unset.
-- `jobagent/pipeline.py` — ties scan / digest / pick-and-generate together.
-- `config.yaml` — search keywords/locations, ATS company tokens, sources toggle,
-  scoring threshold, model names. `profile/profile.yaml` — the user's structured CV.
+- `jobagent/pipeline.py` — ties scan / digest / pick-and-generate together;
+  `generate_for_jd(text|url)` powers ad-hoc generation (uses `ats.fetch_job` for ATS URLs).
+- `run_web.py` + `jobagent/web/` — FastAPI web UI (v1.1): dashboard, scan/pick, ad-hoc
+  generate, docs library + guarded downloads, CSV tracker import. HTTP Basic auth
+  (`WEB_USERNAME`/`WEB_PASSWORD`); Swagger disabled so `/docs` is the document library.
+- `jobagent/scheduler.py` — APScheduler daily scan (config `schedule:`) → digest via `notify`.
+- `jobagent/tracker.py` — CSV (Google Sheets export) → upsert into the `applications` table.
+- `config.yaml` — search keywords/locations, ATS company tokens, sources toggle, scoring
+  threshold, model names, `web:`/`schedule:`. `profile/profile.yaml` — the user's structured CV.
 
 ## Conventions
 - Python 3.10+. Keep dependencies to what's in requirements.txt.
@@ -63,3 +75,6 @@ resume + cover letter → user applies MANUALLY.
 - Telegram digest: numbered list (pick by `1 2 3`, not ids), apply links, HTML formatting.
 - Tests: hermetic `pytest` suite under `tests/` (no network/LLM/Telegram). Run with
   `pip install -r requirements-dev.txt && pytest`.
+- v1.1 web UI (`run_web.py`, `jobagent/web/`): FastAPI dashboard for scan/pick, ad-hoc
+  generation from a pasted JD or ATS URL, docs library, view-only CSV tracker import, and an
+  embedded daily-scan scheduler. Password-protected (`WEB_USERNAME`/`WEB_PASSWORD` in `.env`).

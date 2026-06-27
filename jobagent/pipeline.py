@@ -1,9 +1,11 @@
-"""High-level operations shared by the CLI scan and the Telegram bot."""
+"""High-level operations shared by the CLI scan, the Telegram bot, and the web UI."""
+import hashlib
 import html
 import time
 
 from .config import load_config, load_master, load_profile, load_samples
 from .generate import generate
+from .ingest import ats
 from .ingest.runner import gather
 from .models import Job
 from .score import score_job
@@ -108,3 +110,31 @@ def pick_and_generate(job_ids: list[str], cfg=None):
         paths = generate(row, profile, samples, master, models, cfg["paths"])
         store.record_docs(jid, paths)
         yield dict(row), paths
+
+
+def generate_for_jd(source: str, cfg=None, title=None, company=None):
+    """Generate docs for an ad-hoc job description: pasted text OR an ATS URL.
+
+    Returns (job_row_dict, paths). Reuses generate() and the store so the job shows
+    up in the docs library like any picked job.
+    """
+    cfg = cfg or load_config()
+    source = (source or "").strip()
+    if not source:
+        raise ValueError("Provide a job description (pasted text or an ATS URL).")
+
+    if source.lower().startswith(("http://", "https://")):
+        job = ats.fetch_job(source)                       # raises on unsupported URLs
+    else:
+        job = Job(source="adhoc", title=(title or "Pasted role").strip(),
+                  company=(company or "Pasted company").strip(), url="",
+                  description=source)
+        job.job_id = "adhoc" + hashlib.sha1(source.encode("utf-8")).hexdigest()[:10]
+
+    store = _store(cfg)
+    store.upsert_job(job)
+    row = store.get(job.job_id)
+    paths = generate(row, load_profile(cfg), load_samples(cfg), load_master(cfg),
+                     cfg["models"], cfg["paths"])
+    store.record_docs(job.job_id, paths)
+    return dict(store.get(job.job_id)), paths
