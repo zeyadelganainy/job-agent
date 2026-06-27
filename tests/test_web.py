@@ -60,6 +60,11 @@ def test_settings_page_renders(client):
     assert r.status_code == 200 and "Search settings" in r.text
 
 
+def test_insights_page_renders(client):
+    r = client.get("/insights", headers=_auth())
+    assert r.status_code == 200 and "Applications over time" in r.text and "By stage" in r.text
+
+
 def test_jobs_filters_render(client):
     r = client.get("/jobs?min_score=70&sort=date&dir=asc", headers=_auth())
     assert r.status_code == 200

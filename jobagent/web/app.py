@@ -10,6 +10,7 @@ import secrets
 import threading
 import time
 import uuid
+from collections import Counter
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -254,6 +255,36 @@ def download(path: str, _=Depends(require_auth)):
     if not target.is_file():
         raise HTTPException(status_code=404, detail="Not found")
     return FileResponse(str(target), filename=target.name)
+
+
+# ---- insights (analytics) ----
+@app.get("/insights", response_class=HTMLResponse)
+def insights_page(request: Request, _=Depends(require_auth)):
+    s = _store()
+    try:
+        apps = [dict(r) for r in s.list_applications()]
+    finally:
+        s.close()
+
+    stage_counts = Counter((a["stage"] or "").strip() or "Unspecified" for a in apps).most_common()
+
+    months = Counter()
+    for a in apps:
+        dt = webutil.to_dt(a.get("applied_date"))
+        if dt:
+            months[dt.strftime("%Y-%m")] += 1
+    month_items = sorted(months.items())[-12:]
+    m_labels = [k for k, _ in month_items]
+    m_counts = [v for _, v in month_items]
+    avg = round(sum(m_counts) / len(m_counts), 1) if m_counts else 0
+    companies = len({(a["company"] or "").strip().lower() for a in apps if (a["company"] or "").strip()})
+
+    return render(request, "insights.html", {
+        "stage_labels": [k for k, _ in stage_counts],
+        "stage_counts": [c for _, c in stage_counts],
+        "m_labels": m_labels, "m_counts": m_counts, "avg": avg,
+        "totals": {"apps": len(apps), "companies": companies, "avg": avg,
+                   "this_month": months.get(datetime.now().strftime("%Y-%m"), 0)}})
 
 
 # ---- tracker (editable + paginate) ----

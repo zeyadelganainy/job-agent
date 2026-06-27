@@ -1,11 +1,41 @@
 """Small helpers for the web UI: pagination, date parsing, and a 'next scan in…' string."""
+import re
 from datetime import datetime, timezone
 
 from .ingest.runner import _parse_date  # ISO 8601 / epoch-ms tolerant parser
 
+_SLASH = re.compile(r"^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{2,4})$")
+
 
 def to_dt(s):
-    return _parse_date(s)
+    """Tolerant date parse for tracker/insights: ISO 8601, epoch-ms, and human
+    slash/dash formats (M/D/Y, D/M/Y, Y/M/D) — e.g. Google Sheets '10/14/2025'."""
+    dt = _parse_date(s)
+    if dt:
+        return dt
+    if not s:
+        return None
+    text = str(s).strip()
+    try:                                   # 2025/10/14 (slashes; fromisoformat won't take these)
+        return datetime.strptime(text, "%Y/%m/%d").replace(tzinfo=timezone.utc)
+    except ValueError:
+        pass
+    m = _SLASH.match(text)
+    if not m:
+        return None
+    a, b, y = int(m.group(1)), int(m.group(2)), int(m.group(3))
+    if y < 100:
+        y += 2000
+    if a > 12 and b <= 12:                 # 14/10/2025 → day-first
+        mon, day = b, a
+    else:                                  # default US month-first (10/14/2025)
+        mon, day = a, b
+        if mon > 12:                       # both >12 is invalid; give up
+            return None
+    try:
+        return datetime(y, mon, day, tzinfo=timezone.utc)
+    except ValueError:
+        return None
 
 
 def paginate(rows, page, per_page=20):

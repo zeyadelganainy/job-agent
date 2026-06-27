@@ -35,7 +35,11 @@ Everything runs on your machine, with your own API keys — your résumé data n
 - **Human-in-the-loop by design** — never auto-applies. A deliberate safety + account-ban decision.
 - **ATS feeds over scraping** — public JSON, no ToS-grey scraping for the primary source.
 - **Resilient LLM layer** — Claude (Anthropic) primary, Gemini fallback, both BYOK, with
-  exponential-backoff retry on rate-limit / transient errors.
+  exponential-backoff retry on rate-limit / transient errors, and clear, provider-named
+  error messages when a model is rate-limited or unconfigured.
+- **Optional web dashboard + analytics** — a professional FastAPI/Jinja UI over the same
+  pipeline: scan/pick, ad-hoc generation, an editable application tracker (CSV import), and
+  an Insights view with charts — no build step, no SPA.
 - **Template-faithful generation** — opens your real résumé as a `.docx` template and fills
   in tailored content (fonts, margins, two-column layout, clickable links preserved).
 - **Anti-fabrication guard** — generates only from a "source of truth" file and drops any
@@ -118,10 +122,12 @@ Scheduler job; you then open the bot and `/pick`.
 
 ---
 
-## Web UI (v1.1)
+## Web UI
 
-A browser dashboard over the same engine — run scans, pick jobs, generate from any job
-description, browse generated docs, and view your imported application tracker.
+A full browser dashboard over the same engine — a clean, professional job-tracker
+interface (Swiss-minimal blue/amber design, Fira typography). Run scans, pick jobs,
+generate from any job description, browse generated docs, manage an editable application
+tracker, see analytics, and edit your search settings — all without a build step.
 
 ```bash
 pip install -r requirements.txt
@@ -130,11 +136,13 @@ python run_web.py        # serves on the host/port from config.yaml `web:`
 ```
 
 Log in with the `WEB_USERNAME` / `WEB_PASSWORD` from your `.env`. Pages:
-- **Dashboard** — counts + next scheduled-scan time, with a "Run scan now" button.
-- **Jobs** — tick jobs and generate docs for them (runs in the background).
+- **Dashboard** — headline counts (each links through), the jobs awaiting your decision, and a live "next scan in …" countdown, with a "Run scan now" button.
+- **Jobs** — filter (company / location / match / posted date), sort, and paginate; tick rows to generate docs (background task with live progress) or **remove** the ones you don't want.
 - **Generate** — paste a job description **or** an ATS URL (Greenhouse/Lever/Ashby) → tailored résumé + cover letter `.docx`.
-- **Docs** — every generated document, with downloads.
-- **Tracker** — import your Google Sheets tracker (CSV export with role, company, date applied, stage, location, notes); **view-only**, re-import to refresh.
+- **Docs** — every generated document, searchable by role/company and date, with downloads.
+- **Tracker** — import your Google Sheets tracker (CSV with role, company, date applied, stage, location, notes); **editable** (add / edit / delete), sortable, paginated.
+- **Insights** — an analytics dashboard: applications over time (line chart with an average line), applications by stage (doughnut), and headline stats.
+- **Settings** — edit your search config (keywords, locations, target companies, scoring, models, schedule, and a **company blocklist** for recruiters/scams) from the browser; written back to `config.yaml` with comments preserved.
 
 **Scheduled daily scans:** while the web app is running, it scans at `schedule.time`
 (`config.yaml`) each day and pushes the digest to Telegram.
@@ -161,6 +169,8 @@ search:
     - Remote                # add only if you want remote roles regardless of country
   remote_ok: true           # used by the job-board search
   max_age_days: 7           # ignore postings older than this (when a date is available)
+  block_companies: []       # never show roles from these companies (recruiters/scams);
+                            #   case-insensitive substring — also editable in the web Settings page
 ```
 - **keywords** decide *which kinds of roles* surface (coarse filter; the fine judgment of
   fit is the scorer's job, against your profile).
