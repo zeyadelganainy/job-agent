@@ -13,7 +13,7 @@ if __name__ == "__main__":
     port = int(web.get("port", 8000))
     # 0.0.0.0 means "listen on all interfaces" — it is NOT a browsable address.
     shown = "localhost" if host in ("0.0.0.0", "::") else host
-    print(f"\n  job-agent web UI → open http://{shown}:{port}"
+    print(f"\n  job-agent web UI -> open http://{shown}:{port}"
           f"   (on this machine; from another device use this PC's LAN IP)")
     print("  log in with WEB_USERNAME / WEB_PASSWORD from your .env\n")
     uvicorn.run("jobagent.web.app:app", host=host, port=port)
