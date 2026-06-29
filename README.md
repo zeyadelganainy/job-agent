@@ -10,7 +10,13 @@ template and voice) for the ones you pick. You always apply manually.
 [![CI](https://github.com/zeyadelganainy/job-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/zeyadelganainy/job-agent/actions/workflows/ci.yml)
 
 <p align="center">
-  <img src="docs/demo.gif" alt="job-agent: Telegram shortlist and a generated résumé" width="820">
+  <strong>v1 — the Telegram loop</strong><br>
+  <img src="docs/demo.gif" alt="job-agent v1: Telegram shortlist and a generated résumé" width="820">
+</p>
+
+<p align="center">
+  <strong>v1.2 — the web dashboard</strong><br>
+  <img src="docs/dashboard.png" alt="job-agent v1.2: web dashboard with match scores, shortlist, and analytics" width="820">
 </p>
 
 ```
