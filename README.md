@@ -47,8 +47,6 @@ Everything runs on your machine, with your own API keys — your résumé data n
 - **Config-driven & tested** — everything tunable from `config.yaml`; hermetic `pytest`
   suite (no network/LLM/Telegram) runs in CI.
 
-> See [`docs/`](docs/) for how to add the demo image/GIF above.
-
 ---
 
 ## Setup

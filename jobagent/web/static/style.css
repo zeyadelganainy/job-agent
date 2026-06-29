@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Fira+Sans:wght@400;500;600;700&display=swap');
+/* Fira Sans / Fira Code are loaded via <link rel="preconnect"> + stylesheet in base.html
+   (faster, non-render-blocking) instead of an @import here. */
 
 /* job-agent — professional job-tracker SaaS UI
    Swiss-minimal · blue primary + amber highlights · Fira Sans/Code · navy sidebar
@@ -15,7 +16,10 @@
   --surface:  #ffffff;
   --line:     #e2e8f2;
   --line-2:   #eef2f8;
+  --line-strong: #c9d4e6; /* input/control hover border */
   --muted-bg: #e9eef6;
+  --row-hover:#f9fbfe;   /* table row hover */
+  --soft:     #fbfcfe;   /* subtle inset surface */
   --text:     #172033;
   --text-dim: #5a6b86;
   /* brand */
@@ -84,8 +88,11 @@ main { padding: 26px 30px 60px; min-width: 0; }
 /* ---- buttons ---- */
 .btn { font: inherit; font-weight: 600; padding: 9px 15px; border-radius: 8px; cursor: pointer;
   border: 1px solid var(--line); background: var(--surface); color: var(--text);
-  transition: background .2s, border-color .2s, box-shadow .2s; line-height: 1; }
+  transition: background .2s, border-color .2s, box-shadow .2s, transform .1s; line-height: 1; }
 .btn:hover { background: var(--line-2); }
+.btn:active { transform: translateY(1px); }
+.btn:disabled, .btn[disabled] { opacity: .5; cursor: not-allowed; transform: none; }
+.btn:disabled:hover, .btn[disabled]:hover { background: var(--surface); }
 .btn-primary { background: var(--brand); border-color: var(--brand); color: var(--on-brand); }
 .btn-primary:hover { background: var(--brand-2); border-color: var(--brand-2); }
 .btn-block { width: 100%; }
@@ -122,8 +129,9 @@ select:focus-visible, [type=checkbox]:focus-visible {
 .stat .n { font: 600 36px/1 var(--mono); letter-spacing: -.02em; color: var(--text); }
 .stat .n-sm { font-size: 22px; }
 .stat .l { margin-top: 9px; font-size: 13.5px; color: var(--text-dim); }
-.stat.accent { border-left: 3px solid var(--brand); }
-.stat.soft { background: #fbfcfe; }
+.stat.accent { background: var(--brand-weak); border-color: #cdddfb; }
+.stat.accent .n { color: var(--brand); }
+.stat.soft { background: var(--soft); }
 a.stat { color: inherit; text-decoration: none; transition: border-color .2s, box-shadow .2s, transform .2s; }
 a.stat:hover { border-color: var(--brand-3); box-shadow: 0 3px 14px rgba(30,64,175,.10); transform: translateY(-1px); }
 a.stat .l { color: var(--brand); }
@@ -137,7 +145,7 @@ thead th { background: var(--muted-bg); text-align: left; font-size: 11.5px; fon
   padding: 11px 14px; border-bottom: 1px solid var(--line); }
 tbody td { padding: 11px 14px; border-bottom: 1px solid var(--line-2); vertical-align: middle; }
 tbody tr:last-child td { border-bottom: 0; }
-tbody tr:hover { background: #f9fbfe; }
+tbody tr:hover { background: var(--row-hover); }
 td.num, th.num { white-space: nowrap; }
 .cellmuted { color: var(--text-dim); }
 
@@ -165,7 +173,8 @@ td.num, th.num { white-space: nowrap; }
 input[type=text], input:not([type]), textarea, select {
   font: inherit; width: 100%; padding: 9px 11px; border: 1px solid var(--line);
   border-radius: 8px; background: var(--surface); color: var(--text); }
-input:hover, textarea:hover, select:hover { border-color: #c9d4e6; }
+input:hover, textarea:hover, select:hover { border-color: var(--line-strong); }
+::placeholder { color: var(--text-dim); opacity: 1; }
 textarea { resize: vertical; min-height: 200px; font-family: var(--mono); font-size: 13px; }
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
