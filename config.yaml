@@ -5,7 +5,7 @@ search:
     - backend engineer
     - new grad
   locations:                # a job is kept if its location text contains any of these
-    - Canada                #   (case-insensitive). Canada-only set below.
+    - Canada
     - British Columbia
     - Ontario
     - Quebec
@@ -39,13 +39,24 @@ sources:
   #   lever:      jobs.lever.co/<token>
   #   ashby:      jobs.ashbyhq.com/<token>
   ats:
-    greenhouse: [stripe, figma, clio, visier, d2l, thinkific, geocomply, janeapp, wealthsimple, globalrelay]      # <-- replace with your target companies
+    greenhouse:                                                                                                   # <-- replace with your target companies
+      - stripe
+      - figma
+      - clio
+      - visier
+      - d2l
+      - thinkific
+      - geocomply
+      - janeapp
+      - wealthsimple
+      - globalrelay
     lever: []
-    ashby: [1password]
+    ashby:
+      - 1password
 
   # Job boards via JobSpy. Convenient but ToS-grey + can get IP-blocked. Optional.
   boards:
-    enabled: true                   # flip to true to use
+    enabled: false                  # flip to true to use
     sites: [indeed, linkedin, zip_recruiter, google]
     results_per_site: 25
 
