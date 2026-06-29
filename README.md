@@ -269,6 +269,39 @@ if that exact URL appears in `master.md` — no invented links.
   inputs/outputs. Gemini's *free* tier may use prompts to improve their models (the paid
   tier doesn't) — fine for personal use, just know it.
 
+## What's changed (v1 → v1.2)
+
+The core loop — **scan → score → Telegram digest → `/pick` → tailored docs → you apply** —
+has been the same since v1. Each release adds *surfaces* and *polish* over that same
+pipeline; there is still **no auto-apply**.
+
+### v1 — the loop (CLI + Telegram)
+- Telegram bot (`/scan` `/list` `/pick` `/skip`) and a one-off `run_scan.py` for cron.
+- ATS ingest (Greenhouse / Lever / Ashby public JSON) plus optional, off-by-default JobSpy boards.
+- LLM scoring of each role against your profile, with reasons + gaps.
+- Tailored résumé + cover letter generated from `profile/master.md` into your own `.docx`
+  template, in your `samples/` voice.
+- Claude-primary / Gemini-fallback LLM layer (BYOK), SQLite state, `config.yaml`, hermetic pytest.
+
+### v1.1 — web UI, ad-hoc generation, tracker & scheduling
+- **FastAPI/Jinja web dashboard** (`run_web.py`) over the same engine: dashboard counts,
+  scan/pick with live background progress, docs library with guarded downloads.
+- **Ad-hoc generation** — paste a job description *or* an ATS URL → tailored docs, no scan needed.
+- **Application tracker** — import a Google Sheets CSV into an `applications` table.
+- **Scheduled daily scans** — APScheduler runs at `schedule.time` and pushes the digest while the web app is up.
+- **In-browser Settings editor** — edit `config.yaml` (keywords, locations, companies, models,
+  schedule) with comments preserved (`ruamel.yaml`).
+- **LLM resilience** — exponential-backoff retry on 429/transient errors and an inter-pick delay.
+- Cover letters now render as `.docx` with dated, descriptive filenames.
+
+### v1.2 — professional UI redesign + Insights
+- **UI redesign** — a Swiss-minimal blue/amber design system with Fira typography, a navy
+  sidebar, and a score-signal visual motif across every page (full `style.css` rework).
+- **Insights analytics tab** — applications over time (line chart with an average line),
+  applications by stage (doughnut), and headline stats.
+- **Editable tracker & company blocklist** surfaced in the UI (add / edit / delete rows;
+  `block_companies` to hide recruiters/scams).
+
 ## Development
 
 ```bash
